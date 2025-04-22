@@ -1,6 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { otpVerification, userLogin, userProfile, userRegistration } from '../controllers/user.controller.js';
+import { activeOrDeactivateUser, deleteUser, editUser, getAllUsers, getUserById, otpVerification, userLogin, userProfile, userRegistration } from '../controllers/user.controller.js';
 import { authenticateUser } from '../middleware/Authmiddleware.js';
 const router = express.Router(); // ✅ THIS LINE WAS MISSING
 
@@ -25,6 +25,18 @@ router.post('/verify-otp', [
 ], otpVerification); // Assuming userLogin handles OTP verification as well
 
 router.get('/profile/:id',authenticateUser ,userProfile);
+
+
+//Api's for Admin
+router.get("/getallusers",authenticateUser,getAllUsers);
+
+router.get("/getuser/:id",authenticateUser,getUserById);
+
+router.put("/activateuser/:id",authenticateUser,activeOrDeactivateUser);
+
+router.put("/edituser/:id",authenticateUser,editUser);
+
+router.delete("/deleteuser/:id",authenticateUser,deleteUser);
 
 
 

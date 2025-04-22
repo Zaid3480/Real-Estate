@@ -7,7 +7,7 @@ const router = express.Router();
 // Route to handle POST request for property requirement
 router.post('/requirementForm', authenticateUser, userPropertyRequirementForm);
 
-router.put('/requirementForm/:id', authenticateUser,requirementFormUpdate);
+router.put('/updateRequirement/:id', authenticateUser,requirementFormUpdate);
 
 router.get('/getrequirementform', authenticateUser,getRequirementFormsForUser);
 

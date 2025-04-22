@@ -4,11 +4,11 @@ import sendResponse from '../utils/ResponseHelper.js'; // Adjust path if needed
 import generateOTP from '../utils/generateOTP.js';
 import sendEmail from '../utils/sendEmail.js'; // Adjust path if needed
 import jwt from 'jsonwebtoken';
-
+import CustomerPropertyRequirement from '../models/customerPropertyRequirement.model.js';
 
 export const userRegistration = async (req, res) => {
     try {
-        const { fullName, mobileNo, email, address, password } = req.body;
+        const { fullName, mobileNo, email, address, password,role } = req.body;
 
         // 1. Validate Required Fields
         if (!fullName || !mobileNo || !email || !address || !password) {
@@ -50,6 +50,7 @@ export const userRegistration = async (req, res) => {
             password: hashedPassword,
             otp,
             otpExpire,
+            role,
         });
 
         await newUser.save();
@@ -93,7 +94,7 @@ export const userLogin = async (req, res) => {
         // 2. Find User by Mobile Number 
         const user = await User.findOne({ mobileNo });
         if (!user) {
-            return sendResponse(res, 404, 'User not found');
+            return sendResponse(res, 404, 'Credentials are Incorrect');
         }
 
         // 3. Verify Password
@@ -118,7 +119,7 @@ export const userLogin = async (req, res) => {
         const { password: _, otp: __, otpExpire: ___, ...safeUser } = user.toObject();
 
         // 7. Send Success Response with Token
-        return sendResponse(res, 200, 'User logged in successfully.', {
+        return sendResponse(res, 200, 'Logged in successfully.', {
             token,
             user: safeUser,
         });
@@ -127,6 +128,8 @@ export const userLogin = async (req, res) => {
         return sendResponse(res, 500, 'Internal server error', error.message);
     }
 };
+
+
 
 
 export const otpVerification = async (req, res) => {
@@ -189,6 +192,150 @@ export const userProfile = async (req, res) => {
     }
 };
 
+export const getAllUsers = async (req, res) => {
+    try {
+      // 1. Parse + sanitize inputs
+      const pageNum     = Math.max(parseInt(req.query.page,  10) || 1,  1);
+      const limitNum    = Math.max(parseInt(req.query.limit, 10) || 10, 1);
+      const rawSearch   = (req.query.search || '').trim();
+  
+      // 2. Build base query
+      const query = { role: 'user' };
+  
+      // 3. Only add $or if user actually typed something
+      if (rawSearch.length) {
+        // Use a RegExp object so you get proper escaping
+        const re = new RegExp(rawSearch, 'i');
+        query.$or = [
+          { fullName: re },
+          { mobileNo:   re }
+        ];
+      }
+  
+      // 4. Execute paginated find + count
+      const [ users, total ] = await Promise.all([
+        User.find(query)
+            .skip((pageNum - 1) * limitNum)
+            .limit(limitNum)
+            .select('-password -otp -otpExpire'),
+        User.countDocuments(query)
+      ]);
+  
+      // 5. Enrich with property requirements
+      const usersWithRequirements = await Promise.all(
+        users.map(async user => {
+          const requirements = await CustomerPropertyRequirement
+                                    .find({ userDetails: user._id })
+                                    .select('propertyPurpose priceRange');
+          return {
+            ...user.toObject(),
+            propertyRequirements: requirements,
+          };
+        })
+      );
+  
+      // 6. Send back a neat paging response
+      return sendResponse(res, 200, 'Users retrieved successfully.', {
+        users:      usersWithRequirements,
+        total,
+        page:       pageNum,
+        limit:      limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      });
+    }
+    catch (err) {
+      console.error('Error getting users:', err);
+      return sendResponse(res, 500, 'Server error', err.message);
+    }
+  };
+  
+
+  
+
+export const getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId).select('-password -otp -otpExpire');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('Error getting user by ID:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const activeOrDeactivateUser = async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { isActive } = req.body;
+  
+      const user = await User.findById(userId);
+      if (!user) {
+        return sendResponse(res, 404, 'User not found');
+      }
+  
+      user.isActive = isActive;
+      await user.save();
+  
+      return sendResponse(res, 200, `User ${isActive ? 'activated' : 'deactivated'} successfully.`);
+    } catch (error) {
+      console.error('Error updating user status:', error.message);
+      return sendResponse(res, 500, 'Server error', error.message);
+    }
+  };
+  
+
+  export const editUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { fullName, email, address } = req.body;
+
+        if (!userId) {
+            return sendResponse(res, 400, 'User ID is required');
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return sendResponse(res, 404, 'User not found');
+        }
+
+        // Update only if fields are provided
+        if (fullName !== undefined) user.fullName = fullName;
+        if (email !== undefined) user.email = email;
+        if (address !== undefined) user.address = address;
+
+        const updatedUser = await user.save();
+
+        const { password, otp, otpExpire, ...safeUser } = updatedUser.toObject();
+
+        return sendResponse(res, 200, 'User updated successfully', { user: safeUser });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        return sendResponse(res, 500, 'Server error', error.message);
+    }
+};
+
+
+
+export const deleteUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return sendResponse(res, 404, 'User not found');
+        }
+
+        await User.deleteOne({ _id: userId });
+
+        return sendResponse(res, 200, 'User Deleted Successfully');
+    } catch (error) {
+        console.error('Error deleting user:', error.message);
+        return sendResponse(res, 500, 'Server error', error.message);
+    }
+};
 
 
 

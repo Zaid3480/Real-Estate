@@ -130,8 +130,6 @@ export const userLogin = async (req, res) => {
 };
 
 
-
-
 export const otpVerification = async (req, res) => {
     try {
         const { mobileNo, otp } = req.body;
@@ -249,9 +247,6 @@ export const getAllUsers = async (req, res) => {
     }
   };
   
-
-  
-
 export const getUserById = async (req, res) => {
   try {
     const userId = req.params.id;
@@ -318,7 +313,6 @@ export const activeOrDeactivateUser = async (req, res) => {
 };
 
 
-
 export const deleteUser = async (req, res) => {
     try {
         const userId = req.params.id;
@@ -337,7 +331,18 @@ export const deleteUser = async (req, res) => {
     }
 };
 
+export const totalCountOfUsersandBrokers = async (req, res) => {
+    try {
+        const userCount = await User.countDocuments({ role: 'user' });
+        const brokerCount = await User.countDocuments({ role: 'broker' });
 
-
-
+        return sendResponse(res, 200, 'Counts retrieved successfully', {
+            userCount,
+            brokerCount,
+        });
+    } catch (error) {
+        console.error('Error counting users and brokers:', error.message);
+        return sendResponse(res, 500, 'Server error', error.message);
+    }
+};
 

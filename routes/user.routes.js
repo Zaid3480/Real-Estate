@@ -1,8 +1,8 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { activeOrDeactivateUser, deleteUser, editUser, getAllUsers, getUserById, otpVerification, userLogin, userProfile, userRegistration } from '../controllers/user.controller.js';
+import { activeOrDeactivateUser, deleteUser, editUser, getAllUsers, getUserById, otpVerification, totalCountOfUsersandBrokers, userLogin, userProfile, userRegistration } from '../controllers/user.controller.js';
 import { authenticateUser } from '../middleware/Authmiddleware.js';
-const router = express.Router(); // ✅ THIS LINE WAS MISSING
+const router = express.Router(); 
 
 // Customer (Tenant) Registration
 router.post('/register', [
@@ -38,7 +38,7 @@ router.put("/edituser/:id",authenticateUser,editUser);
 
 router.delete("/deleteuser/:id",authenticateUser,deleteUser);
 
-
+router.get('/totalcount', authenticateUser,totalCountOfUsersandBrokers);
 
 
 export default router;

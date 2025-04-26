@@ -44,10 +44,8 @@ const upload = multer({
 
 // Export different middleware for single and multiple uploads
 export const uploadSingle = upload.single("document"); // For single file upload
-export const uploadMultiple = upload.fields([
-    { name: "ComplianceDocument", maxCount: 50 }, 
-    { name: "MandatoryTrainings", maxCount: 50 },
-    { name: "csvFile", maxCount: 1 } // Allow one CSV file upload
-]); 
+
+export const uploadPropertyImages = upload.array('images', 10); // 'images' is the field name in the form
+
 
 export default upload;

@@ -5,6 +5,8 @@ import generateOTP from '../utils/generateOTP.js';
 import sendEmail from '../utils/sendEmail.js'; // Adjust path if needed
 import jwt from 'jsonwebtoken';
 import CustomerPropertyRequirement from '../models/customerPropertyRequirement.model.js';
+import Property from '../models/property.model.js';
+
 
 export const userRegistration = async (req, res) => {
     try {
@@ -101,6 +103,10 @@ export const userLogin = async (req, res) => {
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return sendResponse(res, 401, 'Invalid password');
+        }
+
+        if (user.isActive === false) {
+          return sendResponse(res, 403, 'Your account has been deactivated. Please contact support.');
         }
 
         // 4. Check if User is Verified
@@ -336,13 +342,56 @@ export const totalCountOfUsersandBrokers = async (req, res) => {
         const userCount = await User.countDocuments({ role: 'user' });
         const brokerCount = await User.countDocuments({ role: 'broker' });
 
+        const propertyCount = await Property.countDocuments({ status: 'Active' });
+
         return sendResponse(res, 200, 'Counts retrieved successfully', {
             userCount,
             brokerCount,
+            propertyCount,
         });
     } catch (error) {
         console.error('Error counting users and brokers:', error.message);
         return sendResponse(res, 500, 'Server error', error.message);
     }
 };
+
+export const getAllBrokers = async (req, res) => {
+    try {
+      const { page = 1, limit = 10, search } = req.query;
+  
+      const query = {
+        role: "broker"
+      };
+  
+      // Search by fullName or mobileNo (case-insensitive)
+      if (search) {
+        query.$or = [
+          { fullName: { $regex: search, $options: "i" } },
+          { mobileNo: { $regex: search, $options: "i" } }
+        ];
+      }
+  
+      const skip = (page - 1) * limit;
+  
+      const brokers = await User.find(query)
+        .skip(Number(skip))
+        .limit(Number(limit));
+  
+      const total = await User.countDocuments(query);
+  
+      res.status(200).json({
+        data: brokers,
+        currentPage: Number(page),
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total
+      });
+    } catch (error) {
+      console.error("Get all brokers error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+
+
+  
 

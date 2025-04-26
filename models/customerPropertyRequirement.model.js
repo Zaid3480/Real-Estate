@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 
+
 const customerPropertyRequirementSchema = new mongoose.Schema({
   
     propertyPurpose: {
@@ -10,18 +11,16 @@ const customerPropertyRequirementSchema = new mongoose.Schema({
     propertyType: {
         type: String,
         required: true,
-        emum:['Flat','House','Bunglow','Shop','Office','Land','Showroom'],
     },
     floor: {
         type: String,
         required: false,
     },
-    furnishedType:{
+    furnished:{
         type: String,
         required: false,
-        emum:['Furnished','Semi-Furnished','Unfurnished'],
     },
-    bhk: {
+    format: {
         type: String,
         required: false,
     },

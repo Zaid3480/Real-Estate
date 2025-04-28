@@ -166,5 +166,27 @@ export const getPropertyById = async (req, res) => {
 };
   
 
+export const getCustomerListOfShareProperty = async (req, res) => {
+  try {
+    const propertyId = req.params.propertyId;
+
+    if (!propertyId) {
+      return sendResponse(res, 400, "Property ID is required.");
+    }
+
+    const customers = await ShareProperties.find({ propertyId })
+      .populate("sharedWith", "fullName email mobileNo")
+      .exec();
+
+    if (!customers || customers.length === 0) {
+      return sendResponse(res, 404, "No customers found for this property.");
+    }
+
+    return sendResponse(res, 200, "Customers retrieved successfully.", customers);
+  } catch (error) {
+    console.error("Error retrieving customers:", error);
+    return sendResponse(res, 500, "Internal server error", { error: error.message });
+  }
+};
 
 

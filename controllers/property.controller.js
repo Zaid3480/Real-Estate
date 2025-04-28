@@ -12,9 +12,9 @@ export const addProperty = async (req, res) => {
       location, size
     } = req.body;
 
-    console.log("Request body:", req.body); // Log the request body for debugging
+    console.log("Request body:", req.body);
 
-    const imagePaths = req.files.map(file => file.path); // full paths like 'uploads/filename.jpg'
+    const videoPaths = req.files.map(file => file.path); // full paths like 'uploads/videos/filename.mp4'
 
     const newProperty = new Property({
       title,
@@ -29,10 +29,9 @@ export const addProperty = async (req, res) => {
       sizeType,
       size,
       furnished,
-      postedBy: req.user._id, // assuming you set this in authenticateUser
+      postedBy: req.user._id,
       userId: req.user._id,
-      images: imagePaths,
-      status: 'Pending'
+      videos: videoPaths, // save videos instead of images
     });
 
     await newProperty.save();
@@ -217,12 +216,7 @@ export const getAllProperties = async (req, res) => {
     }
   };
 
-  
 
-
- 
-
-  
 export const getPropertyListByUserRequirement = async (req, res) => {
     try {
       const { userId } = req.params;

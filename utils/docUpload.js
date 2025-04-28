@@ -46,6 +46,6 @@ const upload = multer({
 export const uploadSingle = upload.single("document"); // For single file upload
 
 export const uploadPropertyImages = upload.array('images', 10); // 'images' is the field name in the form
-
+export const uploadPropertyVideos = upload.array('videos', 5);
 
 export default upload;

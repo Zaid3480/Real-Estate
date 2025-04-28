@@ -111,47 +111,101 @@ export const replyToCustomer = async (req, res) => {
       console.error('Error replying to customer:', error);
       return sendResponse(res, 500, 'Internal Server Error', error.message);
     }
-  }
+}
 
-  export const getAllSupportRequest = async (req, res) => {
+export const getAllSupportRequest = async (req, res) => {
     try {
-      // 1️⃣ Parse + sanitize page & limit
-      const pageNum  = Math.max(parseInt(req.query.page,  10) || 1,  1);
+      const pageNum = Math.max(parseInt(req.query.page, 10) || 1, 1);
       const limitNum = Math.max(parseInt(req.query.limit, 10) || 10, 1);
+      const search = req.query.search || "";
   
-      // 2️⃣ Build your base query (add filters here later if you need them)
-      const baseQuery = {}; // e.g. { status: 'open' } or leave empty for “all”
+      const matchStage = {};
   
-      // 3️⃣ Kick off both fetch + count in parallel
-      const [ messages, total ] = await Promise.all([
-        Support.find(baseQuery)
-          .populate('userId', 'fullName email mobileNo')
-          .skip((pageNum - 1) * limitNum)
-          .limit(limitNum)
-          .exec(),
-        Support.countDocuments(baseQuery)
+      const aggregationPipeline = [
+        {
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            as: "user"
+          }
+        },
+        {
+          $unwind: "$user"
+        },
+        {
+          $match: {
+            "user.fullName": { $regex: search, $options: "i" },
+            ...matchStage
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        },
+        {
+          $skip: (pageNum - 1) * limitNum
+        },
+        {
+          $limit: limitNum
+        },
+        {
+          $addFields: {
+            user: {
+              _id: "$user._id",
+              fullName: "$user.fullName",
+              email: "$user.email",
+              mobileNo: "$user.mobileNo"
+            }
+          }
+        }
+      ];
+  
+      const [messages, totalResult] = await Promise.all([
+        Support.aggregate(aggregationPipeline),
+        Support.aggregate([
+          {
+            $lookup: {
+              from: "users",
+              localField: "userId",
+              foreignField: "_id",
+              as: "user"
+            }
+          },
+          {
+            $unwind: "$user"
+          },
+          {
+            $match: {
+              "user.fullName": { $regex: search, $options: "i" },
+              ...matchStage
+            }
+          },
+          { $count: "total" }
+        ])
       ]);
   
-      // 4️⃣ If no messages at all
+      const total = totalResult[0]?.total || 0;
+  
       if (!messages.length) {
-        return sendResponse(res, 404, 'No support messages found');
+        return sendResponse(res, 404, "No support messages found");
       }
   
-      // 5️⃣ Wrap up paging metadata
       const totalPages = Math.ceil(total / limitNum);
   
-      return sendResponse(res, 200, 'Support messages retrieved successfully', {
+      return sendResponse(res, 200, "Support messages retrieved successfully", {
         messages,
         paging: {
           total,
           totalPages,
-          page:  pageNum,
+          page: pageNum,
           limit: limitNum
         }
       });
     } catch (error) {
-      console.error('Error retrieving support messages:', error);
-      return sendResponse(res, 500, 'Internal Server Error', error.message);
+      console.error("Error retrieving support messages:", error);
+      return sendResponse(res, 500, "Internal Server Error", error.message);
     }
-  };
+};
+  
+  
   

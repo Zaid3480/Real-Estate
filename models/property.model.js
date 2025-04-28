@@ -19,6 +19,7 @@ const propertySchema = new mongoose.Schema({
   status: { type: String, enum: ['Pending', 'Closed', 'Active'], default: 'Active' },
   postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   images: [String], // image URLs
+  videos: [String], // video URLs
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // ID of the user who posted the property
 }, { timestamps: true });
 

@@ -41,7 +41,8 @@ router.delete("/deleteuser/:id",authenticateUser,deleteUser);
 
 router.get('/totalcount', authenticateUser,totalCountOfUsersandBrokers);
 
-router.get('/getallbrokers', authenticateUser,getAllBrokers); // Assuming you have a getPropertyById function in your controller
+router.get('/getallbrokers', authenticateUser,getAllBrokers);
+
 
 
 export default router;

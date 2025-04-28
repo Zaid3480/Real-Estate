@@ -2,6 +2,10 @@ import Property from "../models/property.model.js";
 import CustomerPropertyRequirement from '../models/customerPropertyRequirement.model.js';
 import User from '../models/user.model.js'; // Make sure you import your user model
 import { sendResponse } from "../utils/ResponseHelper.js"; // Adjust the import path as necessary
+import path from 'path'; // Import path for file handling
+import multer from 'multer';
+
+
 
 
 export const addProperty = async (req, res) => {
@@ -12,10 +16,28 @@ export const addProperty = async (req, res) => {
       location, size
     } = req.body;
 
-    console.log("Request body:", req.body);
+    // Validate required fields
+    if (!title || !price || !area || !type || !category || !req.user?._id) {
+      return sendResponse(res, 400, 'Missing required fields');
+    }
 
-    const videoPaths = req.files.map(file => file.path); // full paths like 'uploads/videos/filename.mp4'
+    // Process uploaded files (images and videos)
+    let allMedia = [];
 
+    const allFiles = [
+      ...(req.files['images'] || []),
+      ...(req.files['videos'] || [])
+    ];
+
+    allFiles.forEach(file => {
+      const mediaType = file.mimetype.startsWith('image/') ? 'image' : 'video';
+      allMedia.push({
+        type: mediaType,
+        path: `/uploads/${file.filename}`
+      });
+    });
+
+    // Create new Property
     const newProperty = new Property({
       title,
       price,
@@ -30,19 +52,24 @@ export const addProperty = async (req, res) => {
       size,
       furnished,
       postedBy: req.user._id,
-      userId: req.user._id,
-      videos: videoPaths, // save videos instead of images
+      media: allMedia
     });
 
+    // Save to database
     await newProperty.save();
 
-    return sendResponse(res, 201, "Property added successfully", newProperty);
-    
+    return sendResponse(res, 201, 'Property added successfully', newProperty);
+
   } catch (error) {
-    console.error("Add property error:", error);
-    return sendResponse(res, 500, "Server error", { error: error.message });
+    console.error('Error adding property:', error);
+    if (error instanceof multer.MulterError) {
+      return sendResponse(res, 400, `Multer error: ${error.message}`);
+    }
+    return sendResponse(res, 500, 'Server error', { error: error.message });
   }
 };
+
+
 
   export const getPropertyById = async (req, res) => {
     try {
@@ -63,7 +90,7 @@ export const addProperty = async (req, res) => {
 
   export const getPropertyByBrokerId = async (req, res) => {
     try {
-      const userId = req.params.userId;
+      const userId = req.params.userId;  // Getting broker's userId from params
       const {
         floor,
         priceRange, // single value
@@ -74,8 +101,10 @@ export const addProperty = async (req, res) => {
         search // new field for title/location/area
       } = req.query;
   
-      const query = { userId };
+      // Construct the query to filter properties by broker userId
+      const query = { postedBy: userId };
   
+      // Apply additional filters based on query parameters
       if (floor) query.floor = floor;
       if (category) query.category = category;
       if (format) query.format = format;
@@ -83,7 +112,7 @@ export const addProperty = async (req, res) => {
       if (type) query.type = type;
   
       if (priceRange) {
-        query.price = { $lte: Number(priceRange) };
+        query.price = { $lte: Number(priceRange) };  // Assuming price is less than or equal to priceRange
       }
   
       if (search) {
@@ -94,13 +123,16 @@ export const addProperty = async (req, res) => {
         ];
       }
   
+      // Find properties with the given filters and populate the 'postedBy' field
       const properties = await Property.find(query)
-        .populate('postedBy', 'fullName mobileNo email');
+        .populate('postedBy', 'fullName mobileNo email');  // Populate 'postedBy' with user details
   
+      // Check if any properties were found
       if (!properties || properties.length === 0) {
         return res.status(404).json({ message: "No properties found for this broker with given filters" });
       }
   
+      // Return the properties
       res.status(200).json({ data: properties });
     } catch (error) {
       console.error("Get property by Broker ID error:", error);
@@ -109,30 +141,74 @@ export const addProperty = async (req, res) => {
   };
   
 
-export const updateProperty = async (req, res) => {
+  export const updateProperty = async (req, res) => {
     try {
       const propertyId = req.params.id;
       const updates = req.body;
-      const imagePaths = req.files.map(file => file.path); // full paths like 'uploads/filename.jpg'
+      const userId = req.user?._id;
   
-      if (imagePaths.length > 0) {
-        updates.images = imagePaths; // Add images to updates if provided
+      // Validate required inputs
+      if (!propertyId || !userId) {
+        return sendResponse(res, 400, 'Missing required fields: property ID or user ID');
       }
   
-      const updatedProperty = await Property.findByIdAndUpdate(propertyId, updates, { new: true });
+      // Verify property exists and user authorization
+      const existingProperty = await Property.findById(propertyId);
+      if (!existingProperty) {
+        return sendResponse(res, 404, 'Property not found');
+      }
+      if (existingProperty.postedBy.toString() !== userId.toString()) {
+        return sendResponse(res, 403, 'Unauthorized to update this property');
+      }
+  
+      // Process uploaded files (images and videos)
+      let allMedia = [];
+      const allFiles = [
+        ...(req.files['images'] || []),
+        ...(req.files['videos'] || [])
+      ];
+  
+      if (allFiles.length > 0) {
+        allMedia = allFiles.map(file => ({
+          type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+          path: `/uploads/${file.filename}`
+        }));
+        updates.media = allMedia; // Update media array
+      }
+  
+      // Validate update fields (optional, depending on your requirements)
+      const allowedUpdates = [
+        'title', 'price', 'area', 'floor', 'description',
+        'type', 'category', 'format', 'sizeType', 'furnished',
+        'location', 'size', 'media'
+      ];
+      const updateKeys = Object.keys(updates);
+      const isValidUpdate = updateKeys.every(key => allowedUpdates.includes(key));
+      if (!isValidUpdate) {
+        return sendResponse(res, 400, 'Invalid update fields provided');
+      }
+  
+      // Perform the update
+      const updatedProperty = await Property.findByIdAndUpdate(
+        propertyId,
+        { ...updates, updatedAt: Date.now() },
+        { new: true, runValidators: true }
+      );
   
       if (!updatedProperty) {
-        return sendResponse(res, 404, "Property not found");
+        return sendResponse(res, 404, 'Property not found');
       }
   
-      return sendResponse(res, 200, "Property updated successfully", updatedProperty);
+      return sendResponse(res, 200, 'Property updated successfully', updatedProperty);
   
     } catch (error) {
-      console.error("Update property error:", error);
-      return sendResponse(res, 500, "Server error", { error: error.message });
+      console.error('Update property error:', error);
+      if (error instanceof mongoose.Error.ValidationError) {
+        return sendResponse(res, 400, 'Validation error', { error: error.message });
+      }
+      return sendResponse(res, 500, 'Server error', { error: error.message });
     }
   };
-  
   export const changeStatusOfProperty = async (req, res) => {
     try {
       const propertyId = req.params.id;

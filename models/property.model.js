@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 
+
 const propertySchema = new mongoose.Schema({
   title: { type: String, required: true }, // e.g., "Swarnim Business Center"
   price: { type: Number, required: true }, // e.g., 25751
@@ -17,10 +18,12 @@ const propertySchema = new mongoose.Schema({
   furnished: { type: String, enum: ['Fully', 'Semi', 'Unfurnished'], default: 'Unfurnished' },
 
   status: { type: String, enum: ['Pending', 'Closed', 'Active'], default: 'Active' },
-  postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  images: [String], // image URLs
-  videos: [String], // video URLs
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // ID of the user who posted the property
+  // userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  postedBy: { type: String, required: true },
+  media: [{
+    type: { type: String, enum: ['image', 'video'], required: false },
+    path: { type: String, required: false }
+  }],
 }, { timestamps: true });
 
 

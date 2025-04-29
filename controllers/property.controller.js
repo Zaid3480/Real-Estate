@@ -2,8 +2,10 @@ import Property from "../models/property.model.js";
 import CustomerPropertyRequirement from '../models/customerPropertyRequirement.model.js';
 import User from '../models/user.model.js'; // Make sure you import your user model
 import { sendResponse } from "../utils/ResponseHelper.js"; // Adjust the import path as necessary
-import path from 'path'; // Import path for file handling
+
 import multer from 'multer';
+import ShareProperties from "../models/shareproperties.model.js";
+import mongoose from "mongoose";
 
 
 
@@ -71,7 +73,7 @@ export const addProperty = async (req, res) => {
 
 
 
-  export const getPropertyById = async (req, res) => {
+export const getPropertyById = async (req, res) => {
     try {
       const propertyId = req.params.id;
       const property = await Property.findById(propertyId).populate('postedBy', 'fullName mobileNo email'); // Populate user details if needed
@@ -144,39 +146,42 @@ export const addProperty = async (req, res) => {
   export const updateProperty = async (req, res) => {
     try {
       const propertyId = req.params.id;
-      const updates = req.body;
       const userId = req.user?._id;
+      const updates = req.body;
   
       // Validate required inputs
       if (!propertyId || !userId) {
         return sendResponse(res, 400, 'Missing required fields: property ID or user ID');
       }
   
-      // Verify property exists and user authorization
+      // Verify property exists
       const existingProperty = await Property.findById(propertyId);
       if (!existingProperty) {
         return sendResponse(res, 404, 'Property not found');
       }
-      if (existingProperty.postedBy.toString() !== userId.toString()) {
-        return sendResponse(res, 403, 'Unauthorized to update this property');
-      }
+  
+      // Authorization check (optional - uncomment if you want only the poster to update)
+      // if (existingProperty.postedBy.toString() !== userId.toString()) {
+      //   return sendResponse(res, 403, 'Unauthorized to update this property');
+      // }
   
       // Process uploaded files (images and videos)
-      let allMedia = [];
-      const allFiles = [
-        ...(req.files['images'] || []),
-        ...(req.files['videos'] || [])
-      ];
+      if (req.files) {
+        const allFiles = [
+          ...(req.files['images'] || []),
+          ...(req.files['videos'] || [])
+        ];
   
-      if (allFiles.length > 0) {
-        allMedia = allFiles.map(file => ({
-          type: file.mimetype.startsWith('image/') ? 'image' : 'video',
-          path: `/uploads/${file.filename}`
-        }));
-        updates.media = allMedia; // Update media array
+        if (allFiles.length > 0) {
+          const allMedia = allFiles.map(file => ({
+            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+            path: `/uploads/${file.filename}`
+          }));
+          updates.media = allMedia; // Overwrite existing media
+        }
       }
   
-      // Validate update fields (optional, depending on your requirements)
+      // Validate update fields
       const allowedUpdates = [
         'title', 'price', 'area', 'floor', 'description',
         'type', 'category', 'format', 'sizeType', 'furnished',
@@ -196,19 +201,20 @@ export const addProperty = async (req, res) => {
       );
   
       if (!updatedProperty) {
-        return sendResponse(res, 404, 'Property not found');
+        return sendResponse(res, 404, 'Property not found after update');
       }
   
       return sendResponse(res, 200, 'Property updated successfully', updatedProperty);
   
     } catch (error) {
       console.error('Update property error:', error);
-      if (error instanceof mongoose.Error.ValidationError) {
+      if (error.name === 'ValidationError') {
         return sendResponse(res, 400, 'Validation error', { error: error.message });
       }
       return sendResponse(res, 500, 'Server error', { error: error.message });
     }
   };
+  
   export const changeStatusOfProperty = async (req, res) => {
     try {
       const propertyId = req.params.id;
@@ -387,7 +393,64 @@ export const getPropertyListByUserRequirement = async (req, res) => {
       return sendResponse(res, 500, 'Server error', { error: error.message });
     }
 };
-  
-  
+
+
+export const suggestedPropertiesToCustomerCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // ✅ Validate ObjectId first
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return sendResponse(res, 400, 'Invalid user ID');
+    }
+
+    // ✅ Search entire ShareProperties collection where sharedWith == userId
+    const count = await ShareProperties.countDocuments({ sharedWith: userId });
+
+    return sendResponse(res, 200, 'Count fetched successfully', { totalSharedWithCount: count });
+  } catch (error) {
+    console.error('Error fetching count:', error);
+    return sendResponse(res, 500, 'Server error', { error: error.message });
+  }
+};
+
+export const getBrokerDashboardData = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const brokerId = userId; // Broker's ID
+
+    // 1. Fetch broker details
+    const user = await User.findById(brokerId, 'fullName mobileNo email');
+    if (!user) {
+      return sendResponse(res, 404, 'User not found');
+    }
+
+    // 2. Fetch all properties listed by this broker
+    const allProperties = await Property.find({ postedBy: brokerId });
+
+    // 3. Count by status
+    const totalProperties = allProperties.length;
+    const activeCount = allProperties.filter(p => p.status === 'Active').length;
+    const closedCount = allProperties.filter(p => p.status === 'Deal-Closed').length;
+
+    // 4. Construct dashboard response
+    const dashboardData = {
+      broker: user,
+      totalProperties,
+      activeProperties: activeCount,
+      closedDeals: closedCount
+    };
+
+    return sendResponse(res, 200, 'Broker dashboard data fetched successfully', dashboardData);
+
+  } catch (error) {
+    console.error('Error fetching broker dashboard data:', error);
+    return sendResponse(res, 500, 'Server error', { error: error.message });
+  }
+};
+
+
+
+
   
   

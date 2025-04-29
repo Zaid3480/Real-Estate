@@ -197,61 +197,70 @@ export const userProfile = async (req, res) => {
 };
 
 export const getAllUsers = async (req, res) => {
-    try {
-      // 1. Parse + sanitize inputs
-      const pageNum     = Math.max(parseInt(req.query.page,  10) || 1,  1);
-      const limitNum    = Math.max(parseInt(req.query.limit, 10) || 10, 1);
-      const rawSearch   = (req.query.search || '').trim();
-  
-      // 2. Build base query
-      const query = { role: 'user' };
-  
-      // 3. Only add $or if user actually typed something
-      if (rawSearch.length) {
-        // Use a RegExp object so you get proper escaping
-        const re = new RegExp(rawSearch, 'i');
-        query.$or = [
-          { fullName: re },
-          { mobileNo:   re }
-        ];
-      }
-  
-      // 4. Execute paginated find + count
-      const [ users, total ] = await Promise.all([
-        User.find(query)
-            .skip((pageNum - 1) * limitNum)
-            .limit(limitNum)
-            .select('-password -otp -otpExpire'),
-        User.countDocuments(query)
-      ]);
-  
-      // 5. Enrich with property requirements
-      const usersWithRequirements = await Promise.all(
-        users.map(async user => {
-          const requirements = await CustomerPropertyRequirement
-                                    .find({ userDetails: user._id })
-                                    .select('propertyPurpose priceRange');
-          return {
-            ...user.toObject(),
-            propertyRequirements: requirements,
-          };
-        })
-      );
-  
-      // 6. Send back a neat paging response
-      return sendResponse(res, 200, 'Users retrieved successfully.', {
-        users:      usersWithRequirements,
+  try {
+    // 1. Parse + sanitize inputs
+    const pageNum = Math.max(parseInt(req.query.page, 10) || 1);
+    const limitNum = Math.min(parseInt(req.query.limit, 10) || 10, 100); // Max 100 per page
+    const rawSearch = (req.query.search || '').trim();
+
+    // 2. Build base query
+    const query = { role: 'user' };
+
+    // 3. Add search filter if provided
+    if (rawSearch.length) {
+      const re = new RegExp(rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      query.$or = [
+        { fullName: re },
+        { mobileNo: re }
+      ];
+    }
+
+    // 4. Execute paginated find + count in parallel
+    const [users, total] = await Promise.all([
+      User.find(query)
+          .skip((pageNum - 1) * limitNum)
+          .limit(limitNum)
+          .select('-password -otp -otpExpire')
+          .lean(),
+      User.countDocuments(query)
+    ]);
+
+    // 5. Get all requirements in a single query
+    const userIds = users.map(user => user._id);
+    const allRequirements = await CustomerPropertyRequirement.find(
+      { userDetails: { $in: userIds } },
+      'propertyPurpose propertyType priceRange userDetails'
+    ).lean();
+
+    // 6. Create requirements lookup map
+    const requirementsMap = allRequirements.reduce((map, req) => {
+      const userId = req.userDetails.toString();
+      if (!map[userId]) map[userId] = [];
+      map[userId].push(req);
+      return map;
+    }, {});
+
+    // 7. Combine users with their requirements
+    const usersWithRequirements = users.map(user => ({
+      ...user,
+      propertyRequirements: requirementsMap[user._id.toString()] || []
+    }));
+
+    // 8. Send response
+    return sendResponse(res, 200, 'Users retrieved successfully.', {
+      data: usersWithRequirements,
+      pagination: {
         total,
-        page:       pageNum,
-        limit:      limitNum,
+        page: pageNum,
+        limit: limitNum,
         totalPages: Math.ceil(total / limitNum),
-      });
-    }
-    catch (err) {
-      console.error('Error getting users:', err);
-      return sendResponse(res, 500, 'Server error', err.message);
-    }
-  };
+      }
+    });
+  } catch (err) {
+    console.error('Error getting users:', err);
+    return sendResponse(res, 500, 'Server error', { error: err.message });
+  }
+};
   
 export const getUserById = async (req, res) => {
   try {

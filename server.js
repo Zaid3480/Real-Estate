@@ -9,9 +9,9 @@
     import propertyRoutes from './routes/userPropertyRequirement.routes.js';
     import subscriptionRoutes from './routes/userSubcription.routes.js'; // Adjust path if needed
     import areaRoutes from './routes/area.routes.js'; // Adjust path if needed
-    import supportRoutes from './routes/support.routes.js'; // Adjust path if needed
     import property from './routes/property.routes.js'; // Adjust path if needed
     import shareProperty from './routes/shareproperties.routes.js'; // Adjust path if needed
+    import ticketsupport from './routes/ticketsupport.routes.js'; // Adjust path if needed
     
     dotenv.config(); // Load environment variables
 
@@ -43,12 +43,13 @@
 
     app.use('/api/area', areaRoutes); // or whatever your base path is
 
-    app.use('/api/support', supportRoutes); // or whatever your base path is
+
 
     app.use('/api/property', property); // or whatever your base path is
 
     app.use('/api/shareproperty', shareProperty); // or whatever your base path is
 
+    app.use('/api/ticket', ticketsupport); // or whatever your base path is
     
     //for uploading image
     app.use('/uploads', express.static('uploads')); // Serve static files from the uploads directory

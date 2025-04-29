@@ -20,6 +20,12 @@ const sharePropertiesSchema = new mongoose.Schema({
         ref: 'Property',
         required: true
     },
+
+    status:{
+        type:String,
+        enum: ['Interested', 'Not-Interested', 'Pending'],
+        default: 'Pending'
+    }
 }, {
     timestamps: true
 });

@@ -17,9 +17,13 @@ const propertySchema = new mongoose.Schema({
   size: { type: String }, // e.g., "1000 sqft"
   furnished: { type: String, enum: ['Fully', 'Semi', 'Unfurnished'], default: 'Unfurnished' },
 
-  status: { type: String, enum: ['Pending', 'Closed', 'Active'], default: 'Active' },
+  status: { type: String, enum: [ 'Deal-Closed', 'Active'], default: 'Active' },
   // userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  postedBy: { type: String, required: true },
+  postedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   media: [{
     type: { type: String, enum: ['image', 'video'], required: false },
     path: { type: String, required: false }

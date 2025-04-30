@@ -11,8 +11,7 @@
     import areaRoutes from './routes/area.routes.js'; // Adjust path if needed
     import property from './routes/property.routes.js'; // Adjust path if needed
     import shareProperty from './routes/shareproperties.routes.js'; // Adjust path if needed
-    import ticketsupport from './routes/ticketsupport.routes.js'; // Adjust path if needed
-    
+    import ticketsupport from './routes/support.routes.js';
     dotenv.config(); // Load environment variables
 
     const app = express();
@@ -49,7 +48,7 @@
 
     app.use('/api/shareproperty', shareProperty); // or whatever your base path is
 
-    app.use('/api/ticket', ticketsupport); // or whatever your base path is
+    app.use('/api/support', ticketsupport); // or whatever your base path is
     
     //for uploading image
     app.use('/uploads', express.static('uploads')); // Serve static files from the uploads directory

@@ -365,40 +365,57 @@ export const totalCountOfUsersandBrokers = async (req, res) => {
 };
 
 export const getAllBrokers = async (req, res) => {
-    try {
+  try {
       const { page = 1, limit = 10, search } = req.query;
-  
+
       const query = {
-        role: "broker"
+          role: "broker"
       };
-  
+
       // Search by fullName or mobileNo (case-insensitive)
       if (search) {
-        query.$or = [
-          { fullName: { $regex: search, $options: "i" } },
-          { mobileNo: { $regex: search, $options: "i" } }
-        ];
+          query.$or = [
+              { fullName: { $regex: search, $options: "i" } },
+              { mobileNo: { $regex: search, $options: "i" } }
+          ];
       }
-  
+
       const skip = (page - 1) * limit;
-  
+
+      // First get the brokers with pagination
       const brokers = await User.find(query)
-        .skip(Number(skip))
-        .limit(Number(limit));
-  
+          .skip(Number(skip))
+          .limit(Number(limit))
+          .lean(); // Using lean() for plain JavaScript objects
+
+      // Get the count of properties for each broker
+      const brokersWithPropertyCount = await Promise.all(
+          brokers.map(async (broker) => {
+              const propertyCount = await Property.countDocuments({ 
+                  postedBy: broker._id 
+                  // or whatever field links properties to brokers, 
+                  // could be 'listedBy', 'ownerId', etc.
+              });
+              return {
+                  ...broker,
+                  propertiesCount: propertyCount
+              };
+          })
+      );
+
       const total = await User.countDocuments(query);
-  
+
       res.status(200).json({
-        data: brokers,
-        currentPage: Number(page),
-        totalPages: Math.ceil(total / limit),
-        totalRecords: total
+          data: brokersWithPropertyCount,
+          currentPage: Number(page),
+          totalPages: Math.ceil(total / limit),
+          totalRecords: total
       });
-    } catch (error) {
+  } catch (error) {
       console.error("Get all brokers error:", error);
       res.status(500).json({ error: error.message });
-    }
-  };
+  }
+};
 
 
 

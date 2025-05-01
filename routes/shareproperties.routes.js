@@ -5,12 +5,13 @@ import { changeStatus, getCustomerListOfShareProperty, getPropertiesByUserId, ge
 
 router.post('/customer', authenticateUser,sharePropertyToCustomer);
 
-router.get('/getproperties/:userId', authenticateUser, getPropertiesByUserId);
+router.get('/getproperties/:userId', authenticateUser,getPropertiesByUserId);
 
-router.get('/getbyid/:id', authenticateUser, getPropertyById); 
+router.get('/getbyid/:id', authenticateUser,getPropertyById); 
 
-router.get('/getcustomer/:propertyId', authenticateUser, getCustomerListOfShareProperty); 
+router.get('/getcustomer/:propertyId', authenticateUser,getCustomerListOfShareProperty); 
 
-router.put('/changestatus/:id', authenticateUser, changeStatus);
+router.put('/changestatus/:id', authenticateUser,changeStatus);
 
 export default router; 
+

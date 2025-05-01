@@ -6,7 +6,7 @@ import sendEmail from '../utils/sendEmail.js'; // Adjust path if needed
 import jwt from 'jsonwebtoken';
 import CustomerPropertyRequirement from '../models/customerPropertyRequirement.model.js';
 import Property from '../models/property.model.js';
-
+import ExcelJS from 'exceljs'
 
 export const userRegistration = async (req, res) => {
     try {
@@ -417,6 +417,82 @@ export const getAllBrokers = async (req, res) => {
   }
 };
 
+export const exportExcelOfUsers = async (req, res) => {
+  try {
+      const users = await User.find({ role: 'user' });
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Users');
+
+        worksheet.columns = [
+            { header: 'Full Name', key: 'fullName', width: 30 },
+            { header: 'Mobile No', key: 'mobileNo', width: 15 },
+            { header: 'Email', key: 'email', width: 30 },
+            { header: 'Address', key: 'address', width: 50 },
+            { header: 'Created At', key: 'createdAt', width: 20 },
+            { header: 'Updated At', key: 'updatedAt', width: 20 },
+            ];
+
+      users.forEach((user) => {
+          worksheet.addRow({
+              fullName: user.fullName,
+              mobileNo: user.mobileNo,
+              email: user.email,
+              address: user.address,
+              createdAt: user.createdAt,
+              updatedAt: user.updatedAt,
+          });
+      });
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=users.xlsx');
+      return workbook.xlsx.write(res).then(() => {
+          res.end();
+      });
+  } catch (error) {
+      console.error('Error exporting Excel:', error.message);
+      return sendResponse(res, 500, 'Server error', error.message);
+  }
+};
+
+
+export const exportExcelOfBrokers = async (req, res) => {
+  try {
+      const brokers = await User.find({ role: 'broker' });
+          
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Brokers');
+    
+        worksheet.columns = [
+            { header: 'Full Name', key: 'fullName', width: 30 },
+            { header: 'Mobile No', key: 'mobileNo', width: 15 },
+            { header: 'Email', key: 'email', width: 30 },
+            { header: 'Address', key: 'address', width: 50 },
+            { header: 'Created At', key: 'createdAt', width: 20 },
+            { header: 'Updated At', key: 'updatedAt', width: 20 },
+        ];
+    
+        brokers.forEach((broker) => {
+            worksheet.addRow({
+                fullName: broker.fullName,
+                mobileNo: broker.mobileNo,
+                email: broker.email,
+                address: broker.address,
+                createdAt: broker.createdAt,
+                updatedAt: broker.updatedAt,
+            });
+        });
+    
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=brokers.xlsx');
+        return workbook.xlsx.write(res).then(() => {
+            res.end();
+        });
+    } catch (error) {
+        console.error('Error exporting Excel:', error.message);
+        return sendResponse(res, 500, 'Server error', error.message);
+    }
+    }
 
 
   

@@ -1,6 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { activeOrDeactivateUser, deleteUser, editUser, getAllBrokers, getAllUsers, getUserById, otpVerification, totalCountOfUsersandBrokers, userLogin, userProfile, userRegistration } from '../controllers/user.controller.js';
+import { activeOrDeactivateUser, deleteUser, editUser, exportExcelOfBrokers, exportExcelOfUsers, getAllBrokers, getAllUsers, getUserById, otpVerification, totalCountOfUsersandBrokers, userLogin, userProfile, userRegistration } from '../controllers/user.controller.js';
 import { authenticateUser } from '../middleware/Authmiddleware.js';
 
 const router = express.Router(); 
@@ -42,6 +42,11 @@ router.delete("/deleteuser/:id",authenticateUser,deleteUser);
 router.get('/totalcount', authenticateUser,totalCountOfUsersandBrokers);
 
 router.get('/getallbrokers', authenticateUser,getAllBrokers);
+
+//i want to export excel sheet of all users and brokers
+router.get('/usersexcel', authenticateUser,exportExcelOfUsers);
+
+router.get('/brokersexcel', authenticateUser,exportExcelOfBrokers);
 
 
 

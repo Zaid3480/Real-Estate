@@ -39,8 +39,11 @@ const fileFilter = (req, file, cb) => {
     ];
 
     const fileExtension = path.extname(file.originalname).toLowerCase();
+    console.log("File extension:", fileExtension);
+    console.log("File type:", file.mimetype);
 
     if (allowedTypes.includes(file.mimetype) && allowedExtensions.includes(fileExtension)) {
+
         cb(null, true);
     } else {
         cb(new Error('Only PDF, DOC/DOCX, images, CSV, and video files are allowed'), false);

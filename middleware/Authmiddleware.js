@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 
+/*******  322317ba-5039-42f5-a964-a5c60b37daa2  *******//*************  ✨ Windsurf Command ⭐  *************/
 export const authenticateUser = async (req, res, next) => {
     try {
         let token = req.header("Authorization");

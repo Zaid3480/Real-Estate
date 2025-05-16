@@ -10,13 +10,17 @@ import mongoose from "mongoose";
 
 
 
+
+
 export const addProperty = async (req, res) => {
   try {
     const {
       title, price, area, floor, description,
       type, category, format, sizeType, furnished,
-      location, size
+      location, size,pincode
     } = req.body;
+
+    console.log("Request body:", req.body);
 
     // Validate required fields
     if (!title || !price || !area || !type || !category || !req.user?._id) {
@@ -90,130 +94,149 @@ export const getPropertyById = async (req, res) => {
     }
   };
 
-  export const getPropertyByBrokerId = async (req, res) => {
-    try {
-      const userId = req.params.userId;  // Getting broker's userId from params
-      const {
-        floor,
-        priceRange, // single value
-        category,
-        type,
-        format,
-        furnished,
-        search // new field for title/location/area
-      } = req.query;
-  
-      // Construct the query to filter properties by broker userId
-      const query = { postedBy: userId };
-  
-      // Apply additional filters based on query parameters
-      if (floor) query.floor = floor;
-      if (category) query.category = category;
-      if (format) query.format = format;
-      if (furnished) query.furnished = furnished;
-      if (type) query.type = type;
-  
-      if (priceRange) {
-        query.price = { $lte: Number(priceRange) };  // Assuming price is less than or equal to priceRange
-      }
-  
-      if (search) {
-        query.$or = [
-          { title: { $regex: search, $options: "i" } },
-          { location: { $regex: search, $options: "i" } },
-          { area: { $regex: search, $options: "i" } }
-        ];
-      }
-  
-      // Find properties with the given filters and populate the 'postedBy' field
-      const properties = await Property.find(query)
-        .populate('postedBy', 'fullName mobileNo email');  // Populate 'postedBy' with user details
-  
-      // Check if any properties were found
-      if (!properties || properties.length === 0) {
-        return res.status(404).json({ message: "No properties found for this broker with given filters" });
-      }
-  
-      // Return the properties
-      res.status(200).json({ data: properties });
-    } catch (error) {
-      console.error("Get property by Broker ID error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  };
-  
+export const getPropertyByBrokerId = async (req, res) => {
+  try {
+    const userId = req.params.userId;
 
-  export const updateProperty = async (req, res) => {
-    try {
-      const propertyId = req.params.id;
-      const userId = req.user?._id;
-      const updates = req.body;
-  
-      // Validate required inputs
-      if (!propertyId || !userId) {
-        return sendResponse(res, 400, 'Missing required fields: property ID or user ID');
-      }
-  
-      // Verify property exists
-      const existingProperty = await Property.findById(propertyId);
-      if (!existingProperty) {
-        return sendResponse(res, 404, 'Property not found');
-      }
-  
-      // Authorization check (optional - uncomment if you want only the poster to update)
-      // if (existingProperty.postedBy.toString() !== userId.toString()) {
-      //   return sendResponse(res, 403, 'Unauthorized to update this property');
-      // }
-  
-      // Process uploaded files (images and videos)
-      if (req.files) {
-        const allFiles = [
-          ...(req.files['images'] || []),
-          ...(req.files['videos'] || [])
-        ];
-  
-        if (allFiles.length > 0) {
-          const allMedia = allFiles.map(file => ({
-            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
-            path: `/uploads/${file.filename}`
-          }));
-          updates.media = allMedia; // Overwrite existing media
-        }
-      }
-  
-      // Validate update fields
-      const allowedUpdates = [
-        'title', 'price', 'area', 'floor', 'description',
-        'type', 'category', 'format', 'sizeType', 'furnished',
-        'location', 'size', 'media'
-      ];
-      const updateKeys = Object.keys(updates);
-      const isValidUpdate = updateKeys.every(key => allowedUpdates.includes(key));
-      if (!isValidUpdate) {
-        return sendResponse(res, 400, 'Invalid update fields provided');
-      }
-  
-      // Perform the update
-      const updatedProperty = await Property.findByIdAndUpdate(
-        propertyId,
-        { ...updates, updatedAt: Date.now() },
-        { new: true, runValidators: true }
-      );
-  
-      if (!updatedProperty) {
-        return sendResponse(res, 404, 'Property not found after update');
-      }
-  
-      return sendResponse(res, 200, 'Property updated successfully', updatedProperty);
-  
-    } catch (error) {
-      console.error('Update property error:', error);
-      if (error.name === 'ValidationError') {
-        return sendResponse(res, 400, 'Validation error', { error: error.message });
-      }
-      return sendResponse(res, 500, 'Server error', { error: error.message });
+    const {
+      floor,
+      priceRange,
+      category,
+      type,
+      format,
+      furnished,
+      search
+    } = req.query;
+
+    const query = { postedBy: userId };
+
+    if (floor) query.floor = floor;
+    if (category) query.category = category;
+    if (format) query.format = format;
+    if (furnished) query.furnished = furnished;
+    if (type) query.type = type;
+
+    if (priceRange) {
+      query.price = { $lte: Number(priceRange) };
     }
-  };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { location: { $regex: search, $options: "i" } },
+        { area: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const properties = await Property.find(query)
+      .populate('postedBy', 'fullName mobileNo email');
+
+    if (!properties || properties.length === 0) {
+      return sendResponse(res, 404, "No properties found for this broker with given filters");
+    }
+
+    return sendResponse(res, 200, "Properties fetched successfully", properties);
+  } catch (error) {
+    console.error("Get property by Broker ID error:", error);
+    return sendResponse(res, 500, "Server error", { error: error.message });
+  }
+};
+
+
+
+export const updateProperty = async (req, res) => {
+  try {
+    const propertyId = req.params.id
+    const userId = req.user?._id
+
+    // Validate required inputs
+    if (!propertyId || !userId) {
+      return sendResponse(res, 400, "Missing required fields: property ID or user ID")
+    }
+
+    // Fetch the existing property
+    const existingProperty = await Property.findById(propertyId)
+    if (!existingProperty) {
+      return sendResponse(res, 404, "Property not found")
+    }
+
+    // Extract updates from request body
+    const updates = { ...req.body }
+
+    // Handle media updates
+    let updatedMedia = [...(existingProperty.media || [])]
+
+    // Process new media files
+    if (req.files) {
+      console.log("Received files:", req.files)
+
+      // Process images
+      const newImages = (req.files["images"] || []).map((file) => ({
+        type: "image",
+        path: `/uploads/${file.filename}`,
+      }))
+
+      // Process videos
+      const newVideos = (req.files["videos"] || []).map((file) => ({
+        type: "video",
+        path: `/uploads/${file.filename}`,
+      }))
+
+      // Combine all new media
+      const newMedia = [...newImages, ...newVideos]
+      console.log("New media to add:", newMedia)
+
+      // Add new media to existing media
+      updatedMedia = [...updatedMedia, ...newMedia]
+    }
+
+    // Handle media removal
+    if (req.body.removeMedia) {
+      const removeMediaPaths = Array.isArray(req.body.removeMedia) ? req.body.removeMedia : [req.body.removeMedia]
+
+      console.log("Media paths to remove:", removeMediaPaths)
+
+      // Filter out media that should be removed
+      updatedMedia = updatedMedia.filter((media) => !removeMediaPaths.includes(media.path))
+
+    }
+
+    // Update the media array in the updates object
+    updates.media = updatedMedia
+
+    // Remove removeMedia from updates as it's not a property field
+    delete updates.removeMedia
+
+    // Clean up any empty fields or fields that shouldn't be in the database
+    Object.keys(updates).forEach((key) => {
+      if (updates[key] === "" || updates[key] === undefined || updates[key] === null) {
+        delete updates[key]
+      }
+    })
+
+    console.log("Final updates to apply:", updates)
+
+    // Perform the update
+    const updatedProperty = await Property.findByIdAndUpdate(
+      propertyId,
+      { ...updates, updatedAt: Date.now() },
+      { new: true, runValidators: true },
+    )
+
+    if (!updatedProperty) {
+      return sendResponse(res, 404, "Property not found after update")
+    }
+
+    return sendResponse(res, 200, "Property updated successfully", updatedProperty)
+  } catch (error) {
+    console.error("Update property error:", error)
+    if (error.name === "ValidationError") {
+      return sendResponse(res, 400, "Validation error", { error: error.message })
+    }
+    return sendResponse(res, 500, "Server error", { error: error.message })
+  }
+}
+
   
   export const changeStatusOfProperty = async (req, res) => {
     try {

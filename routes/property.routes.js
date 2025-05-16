@@ -20,10 +20,6 @@ router.get('/suggestedproperties/:userId', authenticateUser, suggestedProperties
 
 router.get('/brokerdashboard/:userId', authenticateUser, getBrokerDashboardData);
 
-
-
-
-
 //Admin routes
 router.get('/getallproperties', authenticateUser, getAllProperties);
 

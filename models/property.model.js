@@ -24,6 +24,7 @@ const propertySchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  pincode: { type: String, required: false }, // e.g., "123456"
   media: [{
     type: { type: String, enum: ['image', 'video'], required: false },
     path: { type: String, required: false }
